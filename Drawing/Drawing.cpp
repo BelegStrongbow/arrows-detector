@@ -3,8 +3,11 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include <iostream>
+#include <random>
 using namespace cv;
 using namespace std;
+
+vector<Point2f> hillClimb(Mat src, vector<Point2f> corners, int repeat);
 
 void imageToImage(const Mat &srcMat, Mat &dstMat, const vector<Point2f> &dst) {
 	vector<Point2f> src;
@@ -51,9 +54,7 @@ void viewHist (MatND hist, int hbins=30, int sbins=32)
 				Scalar::all(intensity),
 				-1);
 		}
-	namedWindow("H-S Histogram", 1);
-	imshow("H-S Histogram", histImg);
-	waitKey();
+	//namedWindow("H-S Histogram", 1);
 }
 
 vector<Point2f> searchForRectangle(Mat src)
@@ -92,7 +93,7 @@ vector<Point2f> searchForRectangle(Mat src)
 	line(drawing, corners[1], corners[2], Scalar(255, 255, 255));
 	line(drawing, corners[2], corners[3], Scalar(255, 255, 255));
 	line(drawing, corners[3], corners[0], Scalar(255, 255, 255));
-	imshow("drawing", drawing);
+	//imshow("drawing", drawing);
 	return corners;
 
 }
@@ -119,16 +120,15 @@ vector<Mat> createMasks(Mat tar)
 	return maskTar;
 }
 
-Mat searchForArrows(Mat src)
+Mat searchForArrows(Mat src, vector<Point2f> corners)
 {
-	auto corners = searchForRectangle(src);
 
-	imshow("input", src); //aand displays the rectangle
+	//imshow("input", src); //aand displays the rectangle
 
 
 	Mat tar = Mat::zeros({ 300, 300 }, src.type());
 	imageToImage(src, tar, corners);
-	imshow("t", tar);
+	//imshow("t", tar);
 
 	Mat hsv;
 	cvtColor(tar, hsv, COLOR_BGR2HSV); //convert to HSV
@@ -168,7 +168,7 @@ Mat searchForArrows(Mat src)
 		Mat maskTarErode;
 		//erode(maskTar[i], maskTarErode, element);
 		invertedMask.copyTo(arrowsFrag, maskTar[i]);
-		imshow("arrowsFrag", arrowsFrag);
+		//imshow("arrowsFrag", arrowsFrag);
 		arrows = arrows + arrowsFrag;
 
 	}
@@ -177,8 +177,12 @@ Mat searchForArrows(Mat src)
 
 Mat markArrows(Mat src)
 {
-	Mat arrows = searchForArrows(src);
+	auto corners = searchForRectangle(src);
+	auto corners2 = hillClimb(src, corners, 30);
+	Mat arrows = searchForArrows(src, corners);
+	Mat arrows2 = searchForArrows(src, corners2);
 	imshow("jhgghjh",arrows);
+	imshow("cos", arrows2);
 	Mat elementBig = getStructuringElement(MORPH_ELLIPSE,
 		Size(9, 9),
 		Point(4, 4));
@@ -186,15 +190,39 @@ Mat markArrows(Mat src)
 	Mat element = getStructuringElement(MORPH_ELLIPSE,
 		Size(5, 5),
 		Point(2, 2));
-	erode(arrows, arrows, element);
-	return arrows;
+	erode(arrows2, arrows2, element);
+	return arrows2;
 }
 
-int goalFunction(Mat src)
+int goalFunction(Mat src, vector<Point2f> corners)
 {
-	Mat arrows = searchForArrows(src);
-	int amountOfWhite = countNonZero(src);
+	Mat arrows = searchForArrows(src, corners);
+	int amountOfWhite = countNonZero(arrows);
 	return amountOfWhite;
+}
+
+vector<Point2f> hillClimb(Mat src, vector<Point2f> corners, int repeat)
+{
+	static random_device seed;
+	static mt19937 gen(seed());
+	static normal_distribution<> dis(0, 5);
+	static uniform_int_distribution<int> unifDis(0, 3);
+	int grade = goalFunction(src, corners);
+	for (int i = 0; i < repeat; i++)
+	{
+		auto newCorners = corners;
+
+		int numberOfVertex = unifDis(gen);
+		newCorners[numberOfVertex].x += dis(gen);
+		newCorners[numberOfVertex].y += dis(gen);
+		auto newGrade = goalFunction(src, newCorners);
+		if (newGrade < grade)
+		{
+			corners = newCorners;
+			grade = newGrade;
+		}
+	}
+	return corners;
 }
 
 int main(int argc, char** argv)
