@@ -131,20 +131,7 @@ Mat searchForArrows(Mat src, vector<Point2f> corners)
 	//imshow("t", tar);
 
 	Mat hsv;
-	cvtColor(tar, hsv, COLOR_BGR2HSV); //convert to HSV
-
-
-/*	vector <Mat> tarHSV;
-	split(hsv, tarHSV); //divide into three separate channels
-
-	imshow("h", tarHSV[0]);
-	imshow("s", tarHSV[1]);
-	imshow("v", tarHSV[2]);
-
-	Mat rotated = tarHSV[0].clone();
-	rotate(rotated, rotated, ROTATE_90_CLOCKWISE);
-	absdiff(rotated, tarHSV[0], rotated);
-	imshow("czysty", rotated);*/
+	cvtColor(tar, hsv, COLOR_BGR2HSV);
 	auto maskTar = createMasks(tar);
 	Mat arrows = Mat::zeros({ 300, 300 }, maskTar[9].type());
 
